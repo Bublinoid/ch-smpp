@@ -97,4 +97,23 @@ public class SmppController {
             throw new RuntimeException(e);
         }
     }
+
+    @PostMapping("/sendBulk")
+    public String sendBulkSms(
+            @RequestParam int count,
+            @RequestParam String from,
+            @RequestParam String to) {
+        try {
+            String[] messages = new String[count];
+            for (int i = 0; i < count; i++) {
+                messages[i] = "Message " + i;
+            }
+
+            smppService.sendBulkMessages(messages, from, to);
+            return count + " messages sent using windowing mechanism";
+        } catch (Exception e) {
+            logger.error("Error sending bulk messages", e);
+            return "Failed to send bulk SMS: " + e.getMessage();
+        }
+    }
 }

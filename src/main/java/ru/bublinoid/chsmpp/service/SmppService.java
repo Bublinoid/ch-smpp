@@ -168,6 +168,40 @@ public class SmppService {
 
     }
 
+    public void sendBulkMessages(String[] messages, String from, String to) {
+        if (session == null || !session.isBound()) {
+            connect();
+        }
+
+        long startTime = System.currentTimeMillis();
+
+        session.getConfiguration().setWindowSize(10);
+
+        for (String message : messages) {
+            executorService.submit(() -> {
+                try {
+                    logger.info("Sending message: {}", message);
+                    SubmitSm submitSm = new SubmitSm();
+                    submitSm.setSourceAddress(new Address(SmppConstants.TON_INTERNATIONAL, SmppConstants.NPI_ISDN, from));
+                    submitSm.setDestAddress(new Address(SmppConstants.TON_INTERNATIONAL, SmppConstants.NPI_ISDN, to));
+                    submitSm.setShortMessage(message.getBytes());
+                    submitSm.setRegisteredDelivery(SmppConstants.REGISTERED_DELIVERY_SMSC_RECEIPT_REQUESTED);
+
+                    session.sendRequestPdu(submitSm, 30000, false);
+                    logger.info("Message sent: {}", message);
+
+                    sentMessages.put(message, System.currentTimeMillis());
+                } catch (Exception e) {
+                    logger.error("Failed to send message: {}", message, e);
+                }
+            });
+        }
+
+        long endTime = System.currentTimeMillis();
+        logger.info("All messages dispatched in {} ms", endTime - startTime);
+    }
+
+
     public int getSentMessageCount() {
         return sentMessages.size();
     }
