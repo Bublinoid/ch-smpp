@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -200,6 +201,62 @@ public class SmppService {
         long endTime = System.currentTimeMillis();
         logger.info("All messages dispatched in {} ms", endTime - startTime);
     }
+
+    public void sendLongSms(String message, String from, String to, byte registeredDelivery) {
+        if (session == null || !session.isBound()) {
+            connect();
+        }
+
+        try {
+            byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
+            int maxSegmentSize = 153;
+
+            if (messageBytes.length > maxSegmentSize) {
+                byte[][] messageParts = splitMessage(messageBytes, maxSegmentSize);
+
+                for (int i = 0; i < messageParts.length; i++) {
+                    SubmitSm submitSm = new SubmitSm();
+                    submitSm.setSourceAddress(new Address(SmppConstants.TON_INTERNATIONAL, SmppConstants.NPI_ISDN, from));
+                    submitSm.setDestAddress(new Address(SmppConstants.TON_INTERNATIONAL, SmppConstants.NPI_ISDN, to));
+                    submitSm.setShortMessage(messageParts[i]);
+                    submitSm.setRegisteredDelivery(registeredDelivery);
+
+                    SubmitSmResp submitSmResp = session.submit(submitSm, 30000);
+                    logger.info("Message part {} sent, message id: {}", (i + 1), submitSmResp.getMessageId());
+                }
+            } else {
+                sendSms(message, from, to, registeredDelivery);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to send long SMS", e);
+        }
+    }
+
+    /**
+     * Разделение длинного сообщения на части с UDH для сегментирования.
+     */
+    private byte[][] splitMessage(byte[] message, int maxSegmentSize) {
+        int numSegments = (int) Math.ceil((double) message.length / maxSegmentSize);
+        byte[][] segments = new byte[numSegments][];
+
+        for (int i = 0; i < numSegments; i++) {
+            int segmentSize = Math.min(maxSegmentSize, message.length - i * maxSegmentSize);
+            byte[] segment = new byte[segmentSize + 6];
+
+            segment[0] = 0x05;
+            segment[1] = 0x00;
+            segment[2] = 0x03;
+            segment[3] = (byte) 0x01;
+            segment[4] = (byte) numSegments;
+            segment[5] = (byte) (i + 1);
+
+            System.arraycopy(message, i * maxSegmentSize, segment, 6, segmentSize);
+            segments[i] = segment;
+        }
+
+        return segments;
+    }
+
 
 
     public int getSentMessageCount() {

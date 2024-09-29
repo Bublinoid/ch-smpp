@@ -116,4 +116,19 @@ public class SmppController {
             return "Failed to send bulk SMS: " + e.getMessage();
         }
     }
+
+    @PostMapping("/sendLong")
+    public String sendLongSms(
+            @RequestParam String message,
+            @RequestParam String from,
+            @RequestParam String to,
+            @RequestParam(defaultValue = "1") byte registeredDelivery) {
+        try {
+            smppService.sendLongSms(message, from, to, registeredDelivery);
+            return "Long SMS sent successfully";
+        } catch (Exception e) {
+            logger.error("Error sending long message", e);
+            return "Failed to send long SMS: " + e.getMessage();
+        }
+    }
 }
