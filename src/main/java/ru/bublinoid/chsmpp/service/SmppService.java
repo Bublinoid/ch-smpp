@@ -88,7 +88,7 @@ public class SmppService {
     }
 
 
-    public void sendSms(String message, String from, String to) {
+    public void sendSms(String message, String from, String to, byte registeredDelivery) {
         if (session == null || !session.isBound()) {
             connect();
         }
@@ -98,7 +98,7 @@ public class SmppService {
             submitSm.setSourceAddress(new Address(SmppConstants.TON_INTERNATIONAL, SmppConstants.NPI_ISDN, from));
             submitSm.setDestAddress(new Address(SmppConstants.TON_INTERNATIONAL, SmppConstants.NPI_ISDN, to));
             submitSm.setShortMessage(message.getBytes());
-            submitSm.setRegisteredDelivery(SmppConstants.REGISTERED_DELIVERY_SMSC_RECEIPT_REQUESTED);
+            submitSm.setRegisteredDelivery(registeredDelivery);
 
             SubmitSmResp submitSmResp = session.submit(submitSm, 30000);
 
@@ -107,7 +107,7 @@ public class SmppService {
         } catch (SmppChannelException e) {
             logger.error("Channel issue detected. Attempting to reconnect.", e);
             reconnect();
-            sendSms(message, from, to);
+            sendSms(message, from, to, registeredDelivery);
         } catch (SmppTimeoutException | SmppInvalidArgumentException e) {
             throw new RuntimeException("Failed to send SMS due to timeout or invalid argument", e);
         } catch (RecoverablePduException | UnrecoverablePduException | InterruptedException e) {

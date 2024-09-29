@@ -33,16 +33,16 @@ public class SmppController {
     public String sendSms(
             @RequestParam String message,
             @RequestParam String from,
-            @RequestParam String to) {
+            @RequestParam String to,
+            @RequestParam(required = false, defaultValue = "1") byte registeredDelivery) {
         try {
-            smppService.sendSms(message, from, to);
+            smppService.sendSms(message, from, to, registeredDelivery);
             return "SMS sent successfully";
         } catch (Exception e) {
             logger.error("Error sending message", e);
             return "Failed to send SMS: " + e.getMessage();
         }
     }
-
 
     @PostMapping("/sendMultiple")
     public String sendMultipleSms(
